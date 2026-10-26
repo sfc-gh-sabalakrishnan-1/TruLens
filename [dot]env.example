@@ -1,0 +1,22 @@
+# All model inference is invoked through Snowflake. No vendor API keys.
+# Copy to .env and populate your Snowflake connection settings.
+SNOWFLAKE_ACCOUNT,SNOWFLAKE_USER,SNOWFLAKE_ROLE=LLM_EVAL_ROLE
+SNOWFLAKE_WAREHOUSE
+SNOWFLAKE_DATABASE
+SNOWFLAKE_SCHEMA
+
+# Local browser-based Snowflake SSO. No Snowflake password needed for SSO.
+SNOWFLAKE_AUTHENTICATOR=externalbrowser
+
+# Cortex model names, not vendor endpoint model IDs.
+# Verify availability, lifecycle, and role permissions in your account first.
+CANDIDATE_MODEL=claude-sonnet-4-5
+JUDGE_MODEL=mistral-large2
+APP_NAME=CORTEX_LLM_EVAL
+APP_VERSION=sonnet_4_5
+EVAL_TABLE=LLM_EVAL_DB.EVAL.EVAL_CASES
+SYSTEM_PROMPT="You are an accurate enterprise assistant. Answer the user's request concisely. If information is insufficient, state that limitation rather than inventing facts."
+TEMPERATURE=0
+MAX_TOKENS=1024
+EVAL_TIMEOUT_SECONDS=1800
+EVAL_POLL_SECONDS=5

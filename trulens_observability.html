@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="glean-artifact-type" content="visual_content">
+<title>AI Observability with TruLens in Snowflake</title>
+<style>
+:root {
+  --artifact-background: #ffffff;
+  --artifact-background-light: #f1f3f6;
+  --artifact-background-mid: #e9ecf1;
+  --artifact-border-light: #e3e6ec;
+  --artifact-border-dark: #cdd2db;
+  --artifact-primary-brand: #1479c9;
+  --artifact-primary-highlight: #0d0f14;
+  --artifact-primary-hover: #0f5fa0;
+  --artifact-selected: #e5f2fb;
+  --artifact-text-primary: #11141a;
+  --artifact-text-secondary: #5c6470;
+  --artifact-text-highlight: #e4f1fb;
+  --artifact-accent-snow: #29b5e8;
+  --artifact-positive-background: #e8f6ee;
+  --artifact-positive-text: #11141a;
+  --artifact-positive: #159a6a;
+  --artifact-negative: #dc4c4c;
+  --artifact-code-bg: #0f1420;
+  --artifact-code-text: #d8e0f0;
+  --artifact-code-comment: #7f8aa3;
+  --artifact-code-key: #6ab0ff;
+  --artifact-code-str: #7fdca4;
+}
+html[data-theme='dark'] {
+  --artifact-background: #0a0b0e;
+  --artifact-background-light: #121419;
+  --artifact-background-mid: #181b22;
+  --artifact-border-light: #23262e;
+  --artifact-border-dark: #343844;
+  --artifact-primary-brand: #57b6ef;
+  --artifact-primary-highlight: #f5f7fb;
+  --artifact-primary-hover: #88c8ff;
+  --artifact-selected: #12283a;
+  --artifact-text-primary: #eef0f4;
+  --artifact-text-secondary: #9aa0ad;
+  --artifact-text-highlight: #102233;
+  --artifact-accent-snow: #48c6f0;
+  --artifact-positive-background: #0e2a1d;
+  --artifact-positive-text: #c8f5da;
+  --artifact-positive: #46d39a;
+  --artifact-negative: #ff6b6b;
+  --artifact-code-bg: #0c0e14;
+  --artifact-code-text: #d8e0f0;
+  --artifact-code-comment: #6b768e;
+  --artifact-code-key: #7cb8ff;
+  --artifact-code-str: #86e0ad;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 16px; font-weight: 400; line-height: 1.6; letter-spacing: -0.005em;
+  background-color: var(--artifact-background); color: var(--artifact-text-primary);
+  margin: 0; padding: 0;
+}
+h1, h2, h3 { font-weight: 400; line-height: 1.06; letter-spacing: -0.02em; color: var(--artifact-text-primary); margin: 0; }
+h1 { font-size: clamp(2.4rem, 6vw, 4.4rem); font-weight: 300; }
+h2 { font-size: clamp(1.6rem, 3.5vw, 2.6rem); font-weight: 300; }
+h3 { font-size: 1.28rem; font-weight: 500; }
+p { color: var(--artifact-text-secondary); }
+.eyebrow { font-family: "SF Mono","IBM Plex Mono","Cascadia Code","Consolas",monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--artifact-primary-brand); margin-bottom: 14px; }
+code, .mono { font-family: "SF Mono","IBM Plex Mono","Consolas",monospace; font-size: 13px; }
+.inline-code { font-family: "SF Mono","IBM Plex Mono","Consolas",monospace; font-size: 0.86em; background: var(--artifact-background-mid); border: 1px solid var(--artifact-border-light); border-radius: 4px; padding: 1px 6px; color: var(--artifact-text-primary); white-space: nowrap; }
+
+.layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); max-width: 1240px; margin: 0 auto; }
+.toc { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; padding: 40px 22px; border-right: 1px solid var(--artifact-border-light); }
+.toc .toc-brand { font-family: "SF Mono","IBM Plex Mono",monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--artifact-text-secondary); margin-bottom: 22px; }
+.toc a { display: block; text-decoration: none; color: var(--artifact-text-secondary); font-size: 13.5px; padding: 7px 12px; border-radius: 6px; margin-bottom: 2px; border-left: 2px solid transparent; transition: all .15s; }
+.toc a:hover { color: var(--artifact-text-primary); background: var(--artifact-background-light); }
+.toc a.active { color: var(--artifact-primary-brand); background: var(--artifact-selected); border-left-color: var(--artifact-primary-brand); font-weight: 500; }
+.main { padding: 0 clamp(20px, 4vw, 64px); min-width: 0; }
+section { padding: 70px 0; border-bottom: 1px solid var(--artifact-border-light); scroll-margin-top: 24px; }
+section:last-of-type { border-bottom: none; }
+.narrow { max-width: 760px; }
+
+/* hero */
+.hero { padding: 96px 0 70px; }
+.hero .tag-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 30px; }
+.pill { font-family: "SF Mono","IBM Plex Mono",monospace; font-size: 11.5px; letter-spacing: 0.06em; padding: 6px 13px; border-radius: 999px; border: 1px solid var(--artifact-border-dark); color: var(--artifact-text-secondary); }
+.hero-sub { font-size: clamp(1.05rem, 2vw, 1.32rem); color: var(--artifact-text-secondary); margin-top: 26px; max-width: 680px; line-height: 1.5; }
+
+.lead { font-size: 1.1rem; color: var(--artifact-text-secondary); margin: 18px 0 0; }
+
+/* expose grid */
+.grid { display: grid; gap: 18px; margin-top: 36px; }
+.grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.card { background: var(--artifact-background-light); border: 1px solid var(--artifact-border-light); border-radius: 8px; padding: 24px; }
+.card h3 { margin-bottom: 8px; }
+.card p { margin: 0; font-size: 0.94rem; }
+.card .num { font-family: "SF Mono","IBM Plex Mono",monospace; font-size: 12px; color: var(--artifact-primary-brand); letter-spacing: 0.1em; margin-bottom: 10px; }
+
+/* ascii */
+.ascii { background: var(--artifact-code-bg); color: var(--artifact-code-text); border-radius: 10px; padding: 26px 24px; overflow-x: auto; font-family: "SF Mono","IBM Plex Mono","Consolas",monospace; font-size: 12.5px; line-height: 1.55; white-space: pre; margin: 0; border: 1px solid var(--artifact-border-dark); }
+.ascii .c { color: var(--artifact-code-comment); }
+.ascii .k { color: var(--artifact-accent-snow); }
+.ascii .s { color: var(--artifact-code-str); }
+
+/* toggle switch for flows */
+.switch { display: inline-flex; background: var(--artifact-background-mid); border: 1px solid var(--artifact-border-light); border-radius: 999px; padding: 4px; margin: 32px 0 24px; }
+.switch button { font-family: inherit; font-size: 13.5px; font-weight: 500; border: none; background: transparent; color: var(--artifact-text-secondary); padding: 9px 20px; border-radius: 999px; cursor: pointer; transition: all .18s; }
+.switch button.active { background: var(--artifact-primary-brand); color: #fff; }
+html[data-theme='dark'] .switch button.active { color: #08131f; }
+.flow-panel { display: none; animation: fade .3s ease; }
+.flow-panel.active { display: block; }
+@keyframes fade { from { opacity: 0; transform: translateY(6px);} to {opacity:1; transform: none;} }
+.flow-meta { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 20px; }
+.flow-meta .chip { font-size: 0.85rem; color: var(--artifact-text-secondary); background: var(--artifact-background-light); border: 1px solid var(--artifact-border-light); border-radius: 6px; padding: 8px 13px; }
+.flow-meta .chip b { color: var(--artifact-text-primary); font-weight: 600; }
+
+/* metric chips */
+.metrics { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+.metric-chip { cursor: pointer; font-family: "SF Mono","IBM Plex Mono",monospace; font-size: 12.5px; padding: 9px 15px; border-radius: 7px; border: 1px solid var(--artifact-border-dark); background: var(--artifact-background); color: var(--artifact-text-primary); transition: all .15s; }
+.metric-chip:hover { border-color: var(--artifact-primary-brand); }
+.metric-chip.active { background: var(--artifact-primary-brand); color: #fff; border-color: var(--artifact-primary-brand); }
+html[data-theme='dark'] .metric-chip.active { color: #08131f; }
+.metric-detail { margin-top: 20px; background: var(--artifact-background-light); border: 1px solid var(--artifact-border-light); border-left: 3px solid var(--artifact-primary-brand); border-radius: 8px; padding: 20px 24px; min-height: 76px; }
+.metric-detail h3 { font-size: 1.05rem; margin-bottom: 6px; }
+.metric-detail p { margin: 0; font-size: 0.92rem; }
+.metric-detail .req { font-family:"SF Mono",monospace; font-size: 11.5px; color: var(--artifact-primary-brand); margin-top: 10px; display:block; }
+
+/* comparison */
+.cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 36px; }
+.cmp-col { border: 1px solid var(--artifact-border-light); border-radius: 10px; overflow: hidden; }
+.cmp-col header { padding: 20px 22px; }
+.cmp-col.native header { background: var(--artifact-selected); }
+.cmp-col.trulens header { background: var(--artifact-text-highlight); }
+.cmp-col header .lbl { font-family:"SF Mono",monospace; font-size: 11px; letter-spacing:0.12em; text-transform: uppercase; color: var(--artifact-primary-brand); }
+.cmp-col header h3 { margin-top: 6px; }
+.cmp-col header p { margin: 6px 0 0; font-size: 0.86rem; }
+.cmp-col ul { list-style: none; margin: 0; padding: 8px 0; }
+.cmp-col li { padding: 13px 22px; font-size: 0.9rem; color: var(--artifact-text-primary); border-top: 1px solid var(--artifact-border-light); display: flex; gap: 10px; align-items:flex-start; }
+.cmp-col li .t { font-family:"SF Mono",monospace; font-size: 10.5px; letter-spacing:0.08em; text-transform:uppercase; color: var(--artifact-text-secondary); min-width: 92px; padding-top: 2px; }
+.verdict { margin-top: 26px; background: var(--artifact-background-light); border: 1px solid var(--artifact-border-light); border-radius: 8px; padding: 22px 24px; }
+.verdict p { margin: 0; color: var(--artifact-text-primary); font-size: 0.96rem; }
+.verdict b { color: var(--artifact-primary-brand); }
+
+/* tables */
+.tbl-wrap { overflow-x: auto; margin-top: 32px; border: 1px solid var(--artifact-border-light); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; min-width: 620px; }
+th { font-family:"SF Mono","IBM Plex Mono",monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--artifact-text-secondary); text-align: left; padding: 14px 18px; background: var(--artifact-background-light); border-bottom: 1px solid var(--artifact-border-dark); }
+td { padding: 14px 18px; border-bottom: 1px solid var(--artifact-border-light); color: var(--artifact-text-primary); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+td .mono { color: var(--artifact-primary-brand); }
+.tool-yes { color: var(--artifact-positive); font-weight: 600; }
+.tool-no { color: var(--artifact-text-secondary); }
+
+/* code block + tabs */
+.code-tabs { display: flex; gap: 4px; margin-top: 34px; flex-wrap: wrap; }
+.code-tabs button { font-family: inherit; font-size: 13px; font-weight: 500; border: 1px solid var(--artifact-border-light); border-bottom: none; background: var(--artifact-background-light); color: var(--artifact-text-secondary); padding: 10px 16px; border-radius: 7px 7px 0 0; cursor: pointer; }
+.code-tabs button.active { background: var(--artifact-code-bg); color: #fff; border-color: var(--artifact-border-dark); }
+.code-panel { display: none; }
+.code-panel.active { display: block; }
+pre.code { background: var(--artifact-code-bg); color: var(--artifact-code-text); border-radius: 0 10px 10px 10px; padding: 24px; overflow-x: auto; font-family:"SF Mono","IBM Plex Mono","Consolas",monospace; font-size: 12.7px; line-height: 1.62; margin: 0; border: 1px solid var(--artifact-border-dark); }
+pre.code .c { color: var(--artifact-code-comment); }
+pre.code .k { color: var(--artifact-code-key); }
+pre.code .s { color: var(--artifact-code-str); }
+.sql-block { margin-top: 22px; }
+.sql-block .label { font-family:"SF Mono",monospace; font-size: 11px; letter-spacing:0.1em; text-transform: uppercase; color: var(--artifact-text-secondary); margin-bottom: 8px; }
+pre.code.sql { border-radius: 10px; }
+
+.callout { margin-top: 26px; background: var(--artifact-text-highlight); border-radius: 8px; padding: 20px 24px; }
+.callout p { color: var(--artifact-text-primary); margin: 0; font-size: 0.94rem; }
+.callout b { font-weight: 600; }
+
+.step-row { display:flex; gap: 16px; margin-top: 14px; align-items:flex-start; }
+.step-row .n { font-family:"SF Mono",monospace; font-size: 12px; color:#fff; background: var(--artifact-primary-brand); border-radius: 6px; min-width: 26px; height: 26px; display:flex; align-items:center; justify-content:center; margin-top:2px; }
+html[data-theme='dark'] .step-row .n { color:#08131f; }
+.step-row div p { margin: 0; }
+.step-row div b { color: var(--artifact-text-primary); }
+
+.footer { padding: 46px 0 90px; }
+.footer p { font-size: 0.82rem; color: var(--artifact-text-secondary); }
+
+.src-tag { display:inline-block; font-family:"SF Mono","IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; padding:3px 9px; border-radius:999px; border:1px solid var(--artifact-border-dark); color: var(--artifact-text-secondary); margin: 0 6px 6px 0; }
+.card ul.tight { margin: 12px 0 0; padding-left: 18px; }
+.card ul.tight li { font-size: 0.9rem; color: var(--artifact-text-secondary); margin-bottom: 5px; }
+.fam-filter { display:inline-flex; gap:6px; margin: 30px 0 0; flex-wrap: wrap; }
+.fam-filter button { font-family: inherit; font-size: 13px; font-weight:500; border:1px solid var(--artifact-border-dark); background: var(--artifact-background); color: var(--artifact-text-secondary); padding: 8px 15px; border-radius: 999px; cursor: pointer; transition: all .15s; }
+.fam-filter button:hover { border-color: var(--artifact-primary-brand); color: var(--artifact-text-primary); }
+.fam-filter button.active { background: var(--artifact-primary-brand); border-color: var(--artifact-primary-brand); color: #fff; }
+html[data-theme='dark'] .fam-filter button.active { color:#08131f; }
+.where { font-family:"SF Mono","IBM Plex Mono",monospace; font-size: 11px; letter-spacing: 0.06em; padding: 3px 9px; border-radius: 5px; white-space: nowrap; }
+.where.server { background: var(--artifact-selected); color: var(--artifact-primary-brand); }
+.where.client { background: var(--artifact-positive-background); color: var(--artifact-positive); }
+.where.auto { background: var(--artifact-background-mid); color: var(--artifact-text-secondary); }
+.limits { margin-top: 26px; border: 1px solid var(--artifact-border-light); border-radius: 10px; padding: 22px 24px; }
+.limits h3 { font-size: 1.05rem; margin-bottom: 10px; }
+.limits ul { margin: 0; padding-left: 18px; }
+.limits li { font-size: 0.92rem; color: var(--artifact-text-secondary); margin-bottom: 7px; }
+.limits li b { color: var(--artifact-text-primary); font-weight: 600; }
+
+.metric-print { display: none; }
+.metric-print p { margin: 0 0 6px; font-size: 0.9rem; }
+.metric-print b { color: var(--artifact-text-primary); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+  .toc { display: none; }
+  .grid.cols-2, .grid.cols-3, .cmp { grid-template-columns: 1fr; }
+}
+
+@media print {
+  @page { size: auto !important; }
+  body { margin: 0; padding: 0.4in 0.6in; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .layout { grid-template-columns: 1fr !important; max-width: 100% !important; }
+  .toc { display: none !important; }
+  section { break-inside: avoid; padding: 26px 0 !important; }
+  .card, .cmp-col, .metric-detail, .callout { break-inside: avoid; box-shadow: none !important; }
+  .code-panel { display: block !important; }
+  .code-tabs { display: none !important; }
+  .flow-panel { display: block !important; }
+  .switch { display: none !important; }
+  .fam-filter { display: none !important; }
+  .metrics, .metric-detail { display: none !important; }
+  .metric-print { display: block !important; margin-top: 16px; }
+  .fam-row { display: table-row !important; }
+  button, [role="button"] { display: none !important; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="toc" data-glean-id="toc">
+    <div class="toc-brand">TruLens &middot; Snowflake AI Observability</div>
+    <a href="#top" class="active">Overview</a>
+    <a href="#exposes">What it exposes</a>
+    <a href="#captures">What it captures</a>
+    <a href="#tree">The telemetry tree</a>
+    <a href="#flows">Two ways in</a>
+    <a href="#storage">Where it lands</a>
+    <a href="#see">How to see it</a>
+    <a href="#compare">Native vs TruLens</a>
+    <a href="#tools">Tools under AI &amp; ML</a>
+    <a href="#code">Sample code</a>
+  </nav>
+
+  <main class="main">
+    <!-- HERO -->
+    <section class="hero" id="top" data-glean-id="hero">
+      <div class="eyebrow">Snowflake AI Observability</div>
+      <h1>One place to watch<br>every AI agent you run.</h1>
+      <p class="hero-sub">TruLens is the open-source observability SDK that Snowflake wires into AI Observability. It captures the full execution tree of an AI app &mdash; planning, tool calls, retrieval, generation &mdash; and lands it as governed data inside your Snowflake account. Whether the agent is a native Cortex Agent or your own custom app running anywhere, the traces end up in the same table and the same Snowsight experience.</p>
+      <div class="tag-row">
+        <span class="pill">Cortex Agents &mdash; native</span>
+        <span class="pill">Custom apps &mdash; External Agent</span>
+        <span class="pill">Traces + evaluations</span>
+        <span class="pill">Governed in Snowflake</span>
+      </div>
+    </section>
+
+    <!-- EXPOSES -->
+    <section id="exposes" data-glean-id="exposes">
+      <div class="eyebrow">What it exposes</div>
+      <h2 class="narrow">Not just a score at the end &mdash; every step in between.</h2>
+      <p class="lead narrow">TruLens instruments your application so each function emits a span. You get visibility into what was retrieved, what the model produced, how long each step took, what it cost, and &mdash; on demand &mdash; an LLM-judge score with an explanation.</p>
+      <div class="grid cols-3">
+        <div class="card" data-glean-id="expose-traces"><div class="num">01</div><h3>Execution traces</h3><p>Inputs and outputs per span, latency, intermediate steps, tool calls, and retrieved context &mdash; the full path from question to answer.</p></div>
+        <div class="card" data-glean-id="expose-eval"><div class="num">02</div><h3>Evaluations</h3><p>Batch runs over a dataset with LLM-as-a-judge metrics, plus per-record and aggregate scores you can compare across app versions.</p></div>
+        <div class="card" data-glean-id="expose-cost"><div class="num">03</div><h3>Cost &amp; latency</h3><p>Token usage and cost per LLM call (from AI_COMPLETE) and per-function latency, rolled up to an average across every input.</p></div>
+        <div class="card" data-glean-id="expose-versions"><div class="num">04</div><h3>Version comparison</h3><p>Run the same dataset against different prompts, models, or retrievers and diff the results to pick the best version to ship.</p></div>
+        <div class="card" data-glean-id="expose-judge"><div class="num">05</div><h3>Judge explanations</h3><p>Every score comes with a reason from the LLM judge, so a low groundedness or relevance score points you to the record that caused it.</p></div>
+        <div class="card" data-glean-id="expose-sql"><div class="num">06</div><h3>SQL access</h3><p>Everything is queryable. Traces and scores live in a Snowflake table you can join, filter, and build dashboards on.</p></div>
+      </div>
+
+      <div class="metrics" id="metricChips" data-glean-id="metric-chips">
+        <div class="metric-chip active" data-m="0">context_relevance</div>
+        <div class="metric-chip" data-m="1">groundedness</div>
+        <div class="metric-chip" data-m="2">answer_relevance</div>
+        <div class="metric-chip" data-m="3">correctness</div>
+        <div class="metric-chip" data-m="4">coherence</div>
+        <div class="metric-chip" data-m="5">cost &amp; latency</div>
+      </div>
+      <div class="metric-detail" id="metricDetail" data-glean-id="metric-detail"></div>
+      <div class="metric-print" data-glean-id="metric-print">
+        <p><b>context_relevance</b> &mdash; Does the retrieved context match the user query? (RETRIEVAL.QUERY_TEXT + RETRIEVED_CONTEXTS)</p>
+        <p><b>groundedness</b> &mdash; Is the answer supported by the retrieved context? (RETRIEVED_CONTEXTS + RECORD_ROOT.OUTPUT)</p>
+        <p><b>answer_relevance</b> &mdash; Is the response relevant to the question? No ground truth needed. (INPUT + OUTPUT)</p>
+        <p><b>correctness</b> &mdash; How closely does the answer match the expected answer? (INPUT + GROUND_TRUTH_OUTPUT + OUTPUT)</p>
+        <p><b>coherence</b> &mdash; Is the response logically consistent? (RECORD_ROOT.OUTPUT)</p>
+        <p><b>cost &amp; latency</b> &mdash; Token cost and per-step latency, captured automatically from the spans.</p>
+      </div>
+    </section>
+
+    <!-- CAPTURES -->
+    <section id="captures" data-glean-id="captures">
+      <div class="eyebrow">What it captures</div>
+      <h2 class="narrow">Not just RAG. Any Python AI app &mdash; any model, any step.</h2>
+      <p class="lead narrow">RAG is only the most common example. TruLens instruments <b>any Python function</b>, so it traces agents, tool calls, MCP calls, multi-agent graphs, and workflows. It also captures LLM calls whether the model runs inside Snowflake Cortex or with an external provider. Each step becomes a typed span, and you can score any span &mdash; or the whole trace &mdash; with the metric family that fits.</p>
+
+      <pre class="ascii" data-glean-id="captures-mixed-trace"><span class="c"># One agent request mixing internal + external models (model names are examples)</span>
+
+<span class="k">RECORD_ROOT</span>   answer("Why did Q3 churn rise?")          <span class="c">&larr; input + final output</span>
+ &#9500;&#9472; <span class="k">AGENT</span>        planner
+ &#9474;   &#9500;&#9472; <span class="s">GENERATION</span>  Snowflake Cortex model          <span class="c">&larr; internal LLM</span>
+ &#9474;   &#9500;&#9472; <span class="s">TOOL</span>        Cortex Analyst &rarr; SQL
+ &#9474;   &#9500;&#9472; <span class="s">RETRIEVAL</span>   Cortex Search &rarr; 4 chunks
+ &#9474;   &#9500;&#9472; <span class="s">RERANKING</span>   rerank retrieved chunks
+ &#9474;   &#9492;&#9472; <span class="s">MCP</span>         crm.lookup_account              <span class="c">&larr; MCP tool call</span>
+ &#9492;&#9472; <span class="s">GENERATION</span>   OpenAI / Bedrock / Gemini model   <span class="c">&larr; external LLM</span>
+        &#9474;
+        &#9660;  <span class="c">evaluation spans written back to the same trace</span>
+ <span class="k">EVAL_ROOT</span>  groundedness   = score + judge reason
+ <span class="k">EVAL_ROOT</span>  tool_selection = score + judge reason
+ <span class="k">EVAL_ROOT</span>  word_count     = custom Python metric
+
+<span class="c"># All of it lands in SNOWFLAKE.LOCAL.AI_OBSERVABILITY_EVENTS</span></pre>
+
+      <div class="grid cols-3" data-glean-id="captures-sources">
+        <div class="card" data-glean-id="src-internal">
+          <div class="num">INTERNAL LLMs</div>
+          <h3>Snowflake Cortex</h3>
+          <ul class="tight">
+            <li><span class="inline-code">AI_COMPLETE</span> and Cortex model calls</li>
+            <li>Cortex Search and Cortex Analyst used as tools</li>
+            <li>Cortex Agents called from inside a larger app</li>
+            <li>Token-based cost calculated automatically for Cortex LLM calls</li>
+          </ul>
+        </div>
+        <div class="card" data-glean-id="src-external">
+          <div class="num">EXTERNAL LLMs</div>
+          <h3>Any provider</h3>
+          <ul class="tight">
+            <li>OpenAI / Azure OpenAI, Anthropic, Bedrock, Gemini</li>
+            <li>Self-hosted models (vLLM, Ollama) through LiteLLM</li>
+            <li>Wrap the call in a <span class="inline-code">GENERATION</span> span &mdash; or keep spans from third-party OTEL instrumentation emitted inside the recording</li>
+            <li>Model name and input/output token counts recorded on the span</li>
+          </ul>
+        </div>
+        <div class="card" data-glean-id="src-frameworks">
+          <div class="num">FRAMEWORKS</div>
+          <h3>Auto-instrumented</h3>
+          <ul class="tight">
+            <li><span class="inline-code">TruChain</span> &mdash; LangChain / LCEL</li>
+            <li><span class="inline-code">TruGraph</span> &mdash; LangGraph agents</li>
+            <li><span class="inline-code">TruLlama</span> &mdash; LlamaIndex</li>
+            <li>OpenAI Agents SDK, MCP tools, and plain Python through <span class="inline-code">@instrument()</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="tbl-wrap" data-glean-id="captures-span-types">
+        <table>
+          <thead><tr><th>Span type</th><th>What it represents</th><th>Typical evaluation</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono">RECORD_ROOT</span></td><td>One app invocation (carries input &amp; output)</td><td>Answer relevance, correctness, coherence</td></tr>
+            <tr><td><span class="mono">GENERATION</span></td><td>An LLM call &mdash; internal or external (model, tokens)</td><td>Cost, latency, output quality</td></tr>
+            <tr><td><span class="mono">RETRIEVAL</span> / <span class="mono">RERANKING</span></td><td>Search / vector lookup and re-ranking</td><td>Context relevance, groundedness</td></tr>
+            <tr><td><span class="mono">AGENT</span></td><td>An agent execution step</td><td>Plan quality, plan adherence, logical consistency</td></tr>
+            <tr><td><span class="mono">TOOL</span> / <span class="mono">MCP</span></td><td>Tool or MCP call (name, arguments, result)</td><td>Tool selection, tool calling, tool quality</td></tr>
+            <tr><td><span class="mono">GRAPH_TASK</span> / <span class="mono">GRAPH_NODE</span> / <span class="mono">WORKFLOW</span></td><td>Multi-agent graph nodes and workflow steps</td><td>Execution efficiency</td></tr>
+            <tr><td><span class="mono">EVAL_ROOT</span> / <span class="mono">EVAL</span></td><td>The evaluation itself (metric name, score, reasoning)</td><td>&mdash;</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:48px">Every family of metrics</h3>
+      <p style="margin:8px 0 0; font-size:0.94rem;">Filter by where the metric runs. <b>Server-side</b> metrics are built into Snowflake: you request them by name and a Cortex model acts as the judge. <b>Client-side</b> metrics use the TruLens Metric API with a judge you choose &mdash; Cortex, OpenAI, Bedrock, Gemini, LiteLLM, and others &mdash; or plain Python. Both kinds are attached to the same run and appear in Snowsight.</p>
+      <div class="fam-filter" data-glean-id="fam-filter">
+        <button type="button" class="active" data-f="all">All</button>
+        <button type="button" data-f="server">Server-side (by name)</button>
+        <button type="button" data-f="client">Client-side (Metric API)</button>
+        <button type="button" data-f="auto">Automatic</button>
+      </div>
+      <div class="tbl-wrap" data-glean-id="captures-metric-families">
+        <table>
+          <thead><tr><th>Family</th><th>Metrics</th><th>Runs</th><th>Judge</th></tr></thead>
+          <tbody>
+            <tr class="fam-row" data-w="server" data-glean-id="fam-rag"><td>RAG triad</td><td>context_relevance, groundedness, answer_relevance</td><td><span class="where server">server-side</span></td><td>Cortex model (<span class="mono">llm_judge_name</span>)</td></tr>
+            <tr class="fam-row" data-w="server" data-glean-id="fam-groundtruth"><td>Ground truth</td><td>correctness</td><td><span class="where server">server-side</span></td><td>Cortex model</td></tr>
+            <tr class="fam-row" data-w="server" data-glean-id="fam-coherence"><td>Output quality</td><td>coherence</td><td><span class="where server">server-side</span></td><td>Cortex model</td></tr>
+            <tr class="fam-row" data-w="client" data-glean-id="fam-quality"><td>Output quality+</td><td>Conciseness, Helpfulness, Sentiment, Comprehensiveness</td><td><span class="where client">client-side</span></td><td>Any provider</td></tr>
+            <tr class="fam-row" data-w="client" data-glean-id="fam-agent"><td>Agent GPA</td><td>Tool Selection, Tool Calling, Tool Quality, Plan Quality, Plan Adherence, Execution Efficiency, Logical Consistency</td><td><span class="where client">client-side</span></td><td>Any provider &mdash; scores the whole trace</td></tr>
+            <tr class="fam-row" data-w="client" data-glean-id="fam-safety"><td>Safety</td><td>Harmfulness, Toxicity, Maliciousness, Hate, Misogyny, Stereotypes</td><td><span class="where client">client-side</span></td><td>Any provider</td></tr>
+            <tr class="fam-row" data-w="client" data-glean-id="fam-custom"><td>Custom</td><td>Any Python function, or an LLM rubric with your own criteria, examples, and score scale</td><td><span class="where client">client-side</span></td><td>Your code or any provider</td></tr>
+            <tr class="fam-row" data-w="auto" data-glean-id="fam-cost"><td>Cost &amp; latency</td><td>Per-span latency, tokens, and cost; per-run averages</td><td><span class="where auto">automatic</span></td><td>None &mdash; read from the spans</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="limits" data-glean-id="captures-limits">
+        <h3>Set expectations clearly</h3>
+        <ul>
+          <li><b>Python applications.</b> Snowflake AI Observability with TruLens supports applications written in Python.</li>
+          <li><b>Only what's instrumented is captured.</b> A step appears in the trace only if it is instrumented or emitted inside a TruLens recording. Spans started outside a recording are dropped.</li>
+          <li><b>Five metrics are available by name on the server.</b> Agent GPA, safety, extended quality, and custom metrics are added as client-side metrics through the Metric API.</li>
+          <li><b>Cost for external LLMs.</b> Snowflake documents automatic cost calculation for Cortex LLM calls. Cost for external models depends on TruLens provider cost tracking, so validate it in your account before relying on it.</li>
+          <li><b>Guardrails are separate.</b> Cortex AI Guardrails apply to CoCo, CoWork, and Cortex Agents, not to TruLens External Agents.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- TREE -->
+    <section id="tree" data-glean-id="tree">
+      <div class="eyebrow">The telemetry tree</div>
+      <h2 class="narrow">A request becomes a tree of spans.</h2>
+      <p class="lead narrow">Both native agents and TruLens-instrumented apps emit OpenTelemetry-style spans. Snowflake organizes them as a hierarchy: a thread holds turns, each turn is one trace, and a trace is made of spans for each meaningful step.</p>
+      <pre class="ascii" data-glean-id="tree-diagram"><span class="c"># One conversation, decomposed</span>
+
+<span class="k">Thread</span>                          <span class="c">&larr; the whole conversation</span>
+ &#9492;&#9472; <span class="k">Turn</span>  (one user request)     <span class="c">&larr; one question / prompt</span>
+     &#9492;&#9472; <span class="k">Trace</span>  (trace_id)         <span class="c">&larr; one end-to-end execution</span>
+         &#9500;&#9472; <span class="s">span</span> : Planning
+         &#9500;&#9472; <span class="s">span</span> : Tool call  &rarr; Cortex Search   (retrieval)
+         &#9500;&#9472; <span class="s">span</span> : Tool call  &rarr; Cortex Analyst  (text-to-SQL)
+         &#9500;&#9472; <span class="s">span</span> : Chart generation
+         &#9492;&#9472; <span class="s">span</span> : Response generation      (the answer)
+
+<span class="c"># Each span stores: inputs, outputs, latency, tokens, cost,</span>
+<span class="c"># tool name, errors -- and, after an eval run, judge scores.</span></pre>
+    </section>
+
+    <!-- FLOWS -->
+    <section id="flows" data-glean-id="flows">
+      <div class="eyebrow">Two ways in, one destination</div>
+      <h2 class="narrow">However the agent is built, the telemetry lands in the same place.</h2>
+      <p class="lead narrow">Pick the path that matches how the agent was built. A native Cortex Agent logs itself automatically. A custom app &mdash; your own RAG pipeline, a LangGraph agent, anything running on Snowpark Container Services or off-platform &mdash; is instrumented with the TruLens SDK and registered as an External Agent.</p>
+
+      <div class="switch" role="tablist" data-glean-id="flow-switch">
+        <button class="active" data-flow="native" type="button">Cortex Agent (native)</button>
+        <button data-flow="trulens" type="button">Custom app (TruLens)</button>
+      </div>
+
+      <div class="flow-panel active" id="flow-native" data-glean-id="flow-native">
+        <pre class="ascii"><span class="k">User</span>
+  &#9474;
+  &#9660;
+<span class="k">Cortex Agent</span>  (built &amp; hosted in Snowflake)
+  &#9474;   planning &middot; tool use &middot; response
+  &#9474;
+  &#9660;  <span class="c">automatic span logging -- no SDK, no code</span>
+<span class="s">SNOWFLAKE.LOCAL.AI_OBSERVABILITY_EVENTS</span>
+  &#9474;
+  &#9660;
+<span class="k">Snowsight</span> &#9656; AI &amp; ML &#9656; <span class="k">Agents</span>
+            &#9500;&#9472; Observability tab   <span class="c">(live threads &amp; traces)</span>
+            &#9492;&#9472; Evaluations tab     <span class="c">(batch scores, GPA metrics)</span></pre>
+        <div class="flow-meta">
+          <div class="chip"><b>You write:</b> nothing &mdash; logging is automatic</div>
+          <div class="chip"><b>Runs:</b> inside Snowflake</div>
+          <div class="chip"><b>Object type:</b> Cortex Agent</div>
+        </div>
+      </div>
+
+      <div class="flow-panel" id="flow-trulens" data-glean-id="flow-trulens">
+        <pre class="ascii"><span class="k">Your app</span>  (RAG / agent / workflow -- runs anywhere)
+  &#9474;   <span class="c">@instrument() on your functions</span>
+  &#9474;
+  &#9660;
+<span class="k">TruApp(...)</span> registers &nbsp;&rarr;&nbsp; <span class="s">EXTERNAL AGENT</span> object
+  &#9474;                          <span class="c">(stores metadata only:</span>
+  &#9474;                          <span class="c"> name, version, run name)</span>
+  &#9474;   OTEL traces exported on each run
+  &#9660;
+<span class="s">SNOWFLAKE.LOCAL.AI_OBSERVABILITY_EVENTS</span>
+  &#9474;
+  &#9660;
+<span class="k">Snowsight</span> &#9656; AI &amp; ML &#9656; <span class="k">Evaluations</span>
+            &#9492;&#9472; select your External Agent &rarr; runs &amp; traces</pre>
+        <div class="flow-meta">
+          <div class="chip"><b>You write:</b> instrument + register with the SDK</div>
+          <div class="chip"><b>Runs:</b> Snowflake compute, another cloud, or on-prem</div>
+          <div class="chip"><b>Object type:</b> External Agent</div>
+        </div>
+      </div>
+
+      <div class="callout" data-glean-id="flow-callout">
+        <p><b>The key idea:</b> the External Agent object stores only metadata (application name, version, run name). It does <b>not</b> store your application code, prompts, traces, or scores &mdash; those all live in <span class="inline-code">AI_OBSERVABILITY_EVENTS</span>.</p>
+      </div>
+    </section>
+
+    <!-- STORAGE -->
+    <section id="storage" data-glean-id="storage">
+      <div class="eyebrow">Where it lands</div>
+      <h2 class="narrow">One event table holds all of it.</h2>
+      <p class="lead narrow">Traces and evaluation results &mdash; from Cortex Agents, CoWork, CoCo, Cortex Search, and TruLens External Agents &mdash; are stored together in a single Snowflake-managed table. Rows are immutable once ingested.</p>
+
+      <div class="tbl-wrap" data-glean-id="table-what-writes">
+        <table>
+          <thead><tr><th>Source</th><th>How it lands</th><th>Object type in queries</th></tr></thead>
+          <tbody>
+            <tr><td>Cortex Agents &amp; Snowflake CoWork</td><td>Automatic logging &mdash; one trace per turn; plus batch evaluation traces</td><td><span class="mono">CORTEX AGENT</span></td></tr>
+            <tr><td>Custom apps via TruLens</td><td>TruLens Python SDK through the Snowflake connector</td><td><span class="mono">EXTERNAL AGENT</span></td></tr>
+            <tr><td>CoCo</td><td>Automatic span records per prompt</td><td><span class="mono">&mdash;</span></td></tr>
+            <tr><td>Cortex Search</td><td>One row per request when request logging is enabled</td><td><span class="mono">CORTEX SEARCH SERVICE</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid cols-2" style="margin-top:26px">
+        <div class="card" data-glean-id="storage-table">
+          <div class="num">THE TABLE</div>
+          <h3><span class="inline-code">SNOWFLAKE.LOCAL.AI_OBSERVABILITY_EVENTS</span></h3>
+          <p>Holds threads &rarr; turns &rarr; traces &rarr; spans, the inputs/outputs per span (subject to redaction), user feedback on responses, and evaluation runs for both Cortex Agents and External Agents. Rows can't be modified after ingestion.</p>
+        </div>
+        <div class="card" data-glean-id="storage-roles">
+          <div class="num">ACCESS</div>
+          <h3>Roles &amp; redaction</h3>
+          <p><span class="inline-code">SNOWFLAKE.AI_OBSERVABILITY_READER</span> grants read access; <span class="inline-code">SNOWFLAKE.AI_OBSERVABILITY_ADMIN</span> can delete rows. The account privilege <span class="inline-code">READ UNREDACTED AI OBSERVABILITY EVENTS TABLE</span> controls whether roles see full tool inputs, outputs, and conversation text &mdash; without it, metadata like tool names, latency, and token counts is still visible.</p>
+        </div>
+      </div>
+      <div class="callout" data-glean-id="storage-usage-note">
+        <p><b>Traces are separate from billing.</b> Credits, tokens, and request metadata for most AI features are recorded in Account Usage views (for example <span class="inline-code">CORTEX_AGENT_USAGE_HISTORY</span>). The telemetry tree lives in <span class="inline-code">AI_OBSERVABILITY_EVENTS</span> &mdash; think "what happened" vs. "what it cost."</p>
+      </div>
+    </section>
+
+    <!-- SEE -->
+    <section id="see" data-glean-id="see">
+      <div class="eyebrow">How to see it</div>
+      <h2 class="narrow">Point-and-click in Snowsight, or query it with SQL.</h2>
+
+      <div class="grid cols-2" style="margin-top:34px">
+        <div class="card" data-glean-id="see-ui">
+          <div class="num">SNOWSIGHT</div>
+          <h3>The Evaluations experience</h3>
+          <div class="step-row"><div class="n">1</div><div><p>Sign in to Snowsight.</p></div></div>
+          <div class="step-row"><div class="n">2</div><div><p>For custom apps: <b>AI &amp; ML &#9656; Evaluations</b>, then select your External Agent.</p></div></div>
+          <div class="step-row"><div class="n">3</div><div><p>For native agents: <b>AI &amp; ML &#9656; Agents</b>, select the agent, open the <b>Observability</b> or <b>Evaluations</b> tab.</p></div></div>
+          <div class="step-row"><div class="n">4</div><div><p>Open a run or record to inspect per-span inputs/outputs, latency, and judge explanations. Select multiple runs and choose <b>Compare</b>.</p></div></div>
+        </div>
+        <div class="card" data-glean-id="see-sql">
+          <div class="num">SQL</div>
+          <h3>Query functions (SNOWFLAKE.LOCAL)</h3>
+          <p style="margin-bottom:14px"><span class="inline-code">GET_AI_OBSERVABILITY_EVENTS</span> &mdash; traces &amp; scores for an object<br><br><span class="inline-code">GET_AI_OBSERVABILITY_LOGS</span> &mdash; warnings &amp; errors from a run<br><br><span class="inline-code">GET_AI_RECORD_TRACE</span> &mdash; a single record's trace<br><br><span class="inline-code">GET_AI_EVALUATION_DATA</span> &mdash; evaluation run data</p>
+        </div>
+      </div>
+
+      <div class="sql-block" data-glean-id="see-sql-example">
+        <div class="label">Read every trace &amp; score for a TruLens app</div>
+        <pre class="code sql"><span class="k">SELECT</span> *
+<span class="k">FROM</span> <span class="k">TABLE</span>(SNOWFLAKE.LOCAL.GET_AI_OBSERVABILITY_EVENTS(
+  <span class="s">'EVAL_DB'</span>,            <span class="c">-- database</span>
+  <span class="s">'EVAL_SCHEMA'</span>,        <span class="c">-- schema</span>
+  <span class="s">'SUPPORT_RAG'</span>,        <span class="c">-- external agent (app) name</span>
+  <span class="s">'EXTERNAL AGENT'</span>      <span class="c">-- agent_type</span>
+));
+
+<span class="c">-- For a native Cortex Agent, pass 'CORTEX AGENT' as the type.</span>
+<span class="c">-- For an External Agent, USAGE on the object is enough; MONITOR does not apply.</span></pre>
+      </div>
+    </section>
+
+    <!-- COMPARE -->
+    <section id="compare" data-glean-id="compare">
+      <div class="eyebrow">Native vs TruLens &mdash; crisp</div>
+      <h2 class="narrow">Same table. Same Snowsight. Different entry point.</h2>
+      <p class="lead narrow">This is the question most customers ask: if Cortex Agents already have observability, what does TruLens add? The honest answer &mdash; they are two doors into the same room, chosen by <b>who built the agent</b>.</p>
+
+      <div class="cmp" data-glean-id="compare-cols">
+        <div class="cmp-col native">
+          <header>
+            <div class="lbl">Built in Snowflake</div>
+            <h3>Cortex Agent observability</h3>
+            <p>For agents you create as native Cortex Agents (incl. Snowflake CoWork / Snowflake Intelligence).</p>
+          </header>
+          <ul>
+            <li><span class="t">You write</span><span>Nothing &mdash; logging is automatic once the agent runs.</span></li>
+            <li><span class="t">Where</span><span>AI &amp; ML &#9656; Agents &#9656; Observability + Evaluations tabs.</span></li>
+            <li><span class="t">Live view</span><span>Real production threads and traces as they happen.</span></li>
+            <li><span class="t">Metrics</span><span>Goal-Plan-Action: tool selection, tool execution, answer correctness, logical consistency.</span></li>
+            <li><span class="t">Best for</span><span>Agents composed of Cortex tools, deployed through the Agent API or CoWork.</span></li>
+          </ul>
+        </div>
+        <div class="cmp-col trulens">
+          <header>
+            <div class="lbl">Built by you</div>
+            <h3>TruLens External Agent</h3>
+            <p>For custom apps that are not a single native Cortex feature &mdash; your own RAG, LangGraph/LlamaIndex agents, multi-step workflows.</p>
+          </header>
+          <ul>
+            <li><span class="t">You write</span><span>Instrument functions with <span class="inline-code">@instrument()</span> and register with <span class="inline-code">TruApp</span>.</span></li>
+            <li><span class="t">Where</span><span>AI &amp; ML &#9656; Evaluations (as an External Agent).</span></li>
+            <li><span class="t">Live view</span><span>Optional live tracing; primarily batch runs over a dataset.</span></li>
+            <li><span class="t">Metrics</span><span>Context relevance, groundedness, answer relevance, correctness, coherence + custom metrics.</span></li>
+            <li><span class="t">Best for</span><span>Apps hosted anywhere &mdash; Snowpark Container Services, another cloud, or on-prem &mdash; that you own end to end.</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="verdict" data-glean-id="compare-verdict">
+        <p><b>What TruLens brings you beyond Cortex Agent observability:</b> it extends the exact same tracing, scoring, and Snowsight experience to code Snowflake didn't build and doesn't host. If your agent is a native Cortex Agent, you already have observability &mdash; use it, no SDK required. The moment you have custom retrieval logic, a non-Cortex orchestration framework, or an app running off-platform, TruLens is how that telemetry still lands in your governed Snowflake account and shows up next to everything else.</p>
+      </div>
+    </section>
+
+    <!-- TOOLS -->
+    <section id="tools" data-glean-id="tools">
+      <div class="eyebrow">Under Snowflake AI &amp; ML</div>
+      <h2 class="narrow">What's observable today, and where.</h2>
+      <p class="lead narrow">Not every Cortex feature exposes the same surface. Here's what you can watch across the stack &mdash; this is the "what shows up" map.</p>
+      <div class="tbl-wrap" data-glean-id="tools-table">
+        <table>
+          <thead><tr><th>Feature</th><th>What you can observe</th><th>Traces in event table</th></tr></thead>
+          <tbody>
+            <tr><td>Snowflake CoWork &amp; Cortex Agents</td><td>Live agent threads &amp; traces; batch evaluations on a dataset</td><td class="tool-yes">Yes</td></tr>
+            <tr><td>Custom apps (TruLens)</td><td>Full traces + batch/live evaluations for apps you host</td><td class="tool-yes">Yes</td></tr>
+            <tr><td>CoCo</td><td>Prompt traces in the event table; credits/tokens in Account Usage</td><td class="tool-yes">Yes</td></tr>
+            <tr><td>Cortex Analyst</td><td>Request/response logs; batch evaluations</td><td class="tool-yes">Yes (via agent trace)</td></tr>
+            <tr><td>Cortex Search</td><td>Request logs when logging is enabled</td><td class="tool-yes">Yes (opt-in)</td></tr>
+            <tr><td>Cortex AI Function Studio</td><td>Author &amp; evaluate custom AI functions; usage in Account Usage</td><td class="tool-no">No (Account Usage)</td></tr>
+            <tr><td>Built-in AI functions (AI_COMPLETE, AI_CLASSIFY&hellip;)</td><td>Credits, tokens, function name, model per call</td><td class="tool-no">No (Account Usage)</td></tr>
+            <tr><td>Cortex REST API</td><td>Tokens, credits, model, request ID, region per request</td><td class="tool-no">No (Account Usage)</td></tr>
+            <tr><td>Cortex AI Guardrails</td><td>Guardrail scan activity, tokens, request metadata</td><td class="tool-no">No (Account Usage)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:16px; font-size:0.85rem;">"Yes" means execution traces land in <span class="inline-code">AI_OBSERVABILITY_EVENTS</span> and appear in the Snowsight Evaluations / Observability experience. "Account Usage" means you get cost and request metadata only, through views &mdash; not step-by-step traces.</p>
+    </section>
+
+    <!-- CODE -->
+    <section id="code" data-glean-id="code">
+      <div class="eyebrow">Sample code</div>
+      <h2 class="narrow">Instrument &rarr; register &rarr; run &rarr; view.</h2>
+      <p class="lead narrow">A minimal custom RAG app, wired for TruLens evaluation. Click through the four steps.</p>
+
+      <div class="code-tabs" data-glean-id="code-tabs">
+        <button class="active" data-code="grant" type="button">1 &middot; Grant access</button>
+        <button data-code="instr" type="button">2 &middot; Instrument</button>
+        <button data-code="reg" type="button">3 &middot; Register</button>
+        <button data-code="run" type="button">4 &middot; Run &amp; score</button>
+        <button data-code="ext" type="button">5 &middot; External LLM + agent metrics</button>
+      </div>
+
+      <div class="code-panel active" id="code-grant" data-glean-id="code-grant">
+<pre class="code"><span class="c">-- Custom role for the app (avoid relying on PUBLIC)</span>
+<span class="k">USE ROLE</span> ACCOUNTADMIN;
+<span class="k">CREATE ROLE IF NOT EXISTS</span> AI_OBSERVABILITY_APP_ROLE;
+
+<span class="k">GRANT DATABASE ROLE</span> SNOWFLAKE.CORTEX_USER   <span class="k">TO ROLE</span> AI_OBSERVABILITY_APP_ROLE;
+<span class="k">GRANT</span> USAGE <span class="k">ON SCHEMA</span> EVAL_DB.EVAL_SCHEMA  <span class="k">TO ROLE</span> AI_OBSERVABILITY_APP_ROLE;
+
+<span class="c">-- register apps, run evaluations, and let the LLM judge run</span>
+<span class="k">GRANT</span> CREATE EXTERNAL AGENT <span class="k">ON SCHEMA</span> EVAL_DB.EVAL_SCHEMA <span class="k">TO ROLE</span> AI_OBSERVABILITY_APP_ROLE;
+<span class="k">GRANT</span> CREATE TASK          <span class="k">ON SCHEMA</span> EVAL_DB.EVAL_SCHEMA <span class="k">TO ROLE</span> AI_OBSERVABILITY_APP_ROLE;
+<span class="k">GRANT</span> EXECUTE TASK        <span class="k">ON ACCOUNT</span>                    <span class="k">TO ROLE</span> AI_OBSERVABILITY_APP_ROLE;
+<span class="k">GRANT</span> USE AI FUNCTIONS    <span class="k">ON ACCOUNT</span>                    <span class="k">TO ROLE</span> AI_OBSERVABILITY_APP_ROLE;
+
+<span class="k">GRANT ROLE</span> AI_OBSERVABILITY_APP_ROLE <span class="k">TO USER</span> SOME_USER;</pre>
+      </div>
+
+      <div class="code-panel" id="code-instr" data-glean-id="code-instr">
+<pre class="code"><span class="c"># pip install "trulens-core&gt;=2.1.2" trulens-connectors-snowflake \</span>
+<span class="c">#             trulens-providers-cortex snowflake-snowpark-python</span>
+
+<span class="k">from</span> trulens.core.otel.instrument <span class="k">import</span> instrument
+<span class="k">from</span> trulens.otel.semconv.trace <span class="k">import</span> SpanAttributes
+
+<span class="k">class</span> SupportRAG:
+    <span class="k">@instrument</span>(
+        span_type=SpanAttributes.SpanType.RETRIEVAL,
+        attributes={
+            SpanAttributes.RETRIEVAL.QUERY_TEXT: <span class="s">"query"</span>,
+            SpanAttributes.RETRIEVAL.RETRIEVED_CONTEXTS: <span class="s">"return"</span>,
+        },
+    )
+    <span class="k">def</span> retrieve_context(self, query: str) -&gt; list:
+        <span class="k">return</span> self.retriever.retrieve(query)   <span class="c"># Cortex Search / vector DB</span>
+
+    <span class="k">@instrument</span>(span_type=SpanAttributes.SpanType.GENERATION)
+    <span class="k">def</span> generate(self, query, contexts) -&gt; str:
+        <span class="k">return</span> complete_with_cortex(query, contexts)
+
+    <span class="k">@instrument</span>(span_type=SpanAttributes.SpanType.RECORD_ROOT)
+    <span class="k">def</span> answer_query(self, query: str) -&gt; str:
+        <span class="k">return</span> self.generate(query, self.retrieve_context(query))</pre>
+      </div>
+
+      <div class="code-panel" id="code-reg" data-glean-id="code-reg">
+<pre class="code"><span class="k">from</span> trulens.apps.app <span class="k">import</span> TruApp
+<span class="k">from</span> trulens.connectors.snowflake <span class="k">import</span> SnowflakeConnector
+
+<span class="c"># Pass an existing Snowpark session -- no password needed</span>
+connector = SnowflakeConnector(snowpark_session=session)
+
+app = SupportRAG()
+
+<span class="c"># TruApp registers the app and auto-creates the EXTERNAL AGENT object.</span>
+<span class="c"># You do NOT need to run CREATE EXTERNAL AGENT by hand.</span>
+tru_app = TruApp(
+    app,
+    app_name=<span class="s">"SUPPORT_RAG"</span>,
+    app_version=<span class="s">"v1"</span>,
+    connector=connector,
+    main_method=app.answer_query,
+)</pre>
+      </div>
+
+      <div class="code-panel" id="code-run" data-glean-id="code-run">
+<pre class="code"><span class="k">import</span> time, pandas <span class="k">as</span> pd
+<span class="k">from</span> trulens.core.run <span class="k">import</span> RunConfig
+
+df = pd.DataFrame([
+    {<span class="s">"question"</span>: <span class="s">"How do I reset my password?"</span>,
+     <span class="s">"ground_truth"</span>: <span class="s">"Verify identity, then reset in Account Settings."</span>},
+])
+
+run = tru_app.add_run(run_config=RunConfig(
+    run_name=<span class="s">"support_rag_eval_v1"</span>,
+    source_type=<span class="s">"DATAFRAME"</span>,
+    dataset_name=<span class="s">"support_eval"</span>,
+    dataset_spec={
+        <span class="s">"RECORD_ROOT.INPUT"</span>: <span class="s">"question"</span>,
+        <span class="s">"RETRIEVAL.QUERY_TEXT"</span>: <span class="s">"question"</span>,
+        <span class="s">"RECORD_ROOT.GROUND_TRUTH_OUTPUT"</span>: <span class="s">"ground_truth"</span>,
+    },
+    llm_judge_name=<span class="s">"llama3.1-70b"</span>,   <span class="c"># default judge</span>
+))
+
+run.start(input_df=df)                     <span class="c"># invokes app, writes traces</span>
+<span class="k">while</span> run.get_status() != <span class="s">"INVOCATION_COMPLETED"</span>:
+    time.sleep(3)                          <span class="c"># wait for ingestion</span>
+
+run.compute_metrics(metrics=[
+    <span class="s">"context_relevance"</span>, <span class="s">"groundedness"</span>,
+    <span class="s">"answer_relevance"</span>, <span class="s">"correctness"</span>, <span class="s">"coherence"</span>,
+])
+<span class="c"># View: Snowsight -&gt; AI &amp; ML -&gt; Evaluations -&gt; SUPPORT_RAG</span></pre>
+      </div>
+      <div class="code-panel" id="code-ext" data-glean-id="code-ext">
+<pre class="code"><span class="c"># An agent that calls an EXTERNAL LLM (OpenAI here) and a tool,</span>
+<span class="c"># evaluated with server-side metrics + client-side Agent GPA metrics.</span>
+<span class="k">from</span> openai <span class="k">import</span> OpenAI <span class="k">as</span> OpenAIClient
+<span class="k">from</span> trulens.core <span class="k">import</span> Metric, Selector
+<span class="k">from</span> trulens.providers.cortex <span class="k">import</span> Cortex
+
+client = OpenAIClient()
+
+<span class="k">class</span> SupportAgent:
+    <span class="k">@instrument</span>(span_type=SpanAttributes.SpanType.TOOL)
+    <span class="k">def</span> lookup_account(self, account_id: str) -&gt; dict:
+        <span class="k">return</span> crm.get(account_id)                <span class="c"># your tool / MCP call</span>
+
+    <span class="k">@instrument</span>(span_type=SpanAttributes.SpanType.GENERATION)
+    <span class="k">def</span> call_external_llm(self, prompt: str) -&gt; str:
+        r = client.chat.completions.create(
+            model=<span class="s">"gpt-4o-mini"</span>,
+            messages=[{<span class="s">"role"</span>: <span class="s">"user"</span>, <span class="s">"content"</span>: prompt}],
+        )
+        <span class="k">return</span> r.choices[0].message.content
+
+    <span class="k">@instrument</span>(
+        span_type=SpanAttributes.SpanType.RECORD_ROOT,
+        attributes={SpanAttributes.RECORD_ROOT.INPUT: <span class="s">"question"</span>,
+                    SpanAttributes.RECORD_ROOT.OUTPUT: <span class="s">"return"</span>},
+    )
+    <span class="k">def</span> ask(self, question: str) -&gt; str:
+        facts = self.lookup_account(<span class="s">"ACME-001"</span>)
+        <span class="k">return</span> self.call_external_llm(<span class="s">f"{facts}\n\n{question}"</span>)
+
+<span class="c"># Judge for client-side metrics: a Cortex model (or OpenAI, Bedrock, LiteLLM ...)</span>
+judge = Cortex(snowpark_session=session, model_engine=<span class="s">"claude-sonnet-4-5"</span>)
+whole_trace = {<span class="s">"trace"</span>: Selector(trace_level=<span class="k">True</span>)}
+
+agent_metrics = [
+    Metric(implementation=judge.tool_selection_with_cot_reasons,      name=<span class="s">"Tool Selection"</span>,       selectors=whole_trace),
+    Metric(implementation=judge.tool_calling_with_cot_reasons,        name=<span class="s">"Tool Calling"</span>,         selectors=whole_trace),
+    Metric(implementation=judge.execution_efficiency_with_cot_reasons, name=<span class="s">"Execution Efficiency"</span>, selectors=whole_trace),
+    Metric(implementation=judge.logical_consistency_with_cot_reasons,  name=<span class="s">"Logical Consistency"</span>,  selectors=whole_trace),
+]
+
+<span class="c"># ... register with TruApp, add_run, run.start(input_df=df) as in step 4 ...</span>
+
+run.compute_metrics(metrics=[
+    <span class="s">"answer_relevance"</span>, <span class="s">"coherence"</span>,   <span class="c"># server-side, by name</span>
+    *agent_metrics,                        <span class="c"># client-side Agent GPA</span>
+])</pre>
+      </div>
+    </section>
+
+    <footer class="footer" data-glean-id="footer">
+      <p>Prepared as a technical explainer of Snowflake AI Observability with TruLens. Product behavior and object names reflect current Snowflake documentation; confirm regional availability and privileges for your account before rollout.</p>
+    </footer>
+  </main>
+</div>
+
+<script>
+// --- metric detail ---
+var metrics = [
+  {t:"Context Relevance", d:"Does the retrieved context actually match the user query? An LLM judge scores the retrieval step.", r:"needs: RETRIEVAL.QUERY_TEXT + RETRIEVAL.RETRIEVED_CONTEXTS"},
+  {t:"Groundedness", d:"Is the generated answer supported by the retrieved context? Uses chain-of-thought reasoning to detect unsupported claims.", r:"needs: RETRIEVAL.RETRIEVED_CONTEXTS + RECORD_ROOT.OUTPUT"},
+  {t:"Answer Relevance", d:"Is the response relevant to the question? Reference-free -- it does not need a ground-truth answer.", r:"needs: RECORD_ROOT.INPUT + RECORD_ROOT.OUTPUT"},
+  {t:"Correctness", d:"How closely does the answer match the expected ground-truth answer? Higher means more accurate.", r:"needs: INPUT + GROUND_TRUTH_OUTPUT + OUTPUT"},
+  {t:"Coherence", d:"Is the response logically consistent, with no gaps or contradictions?", r:"needs: RECORD_ROOT.OUTPUT"},
+  {t:"Cost & Latency", d:"Token-based cost per Cortex LLM call and per-function latency, aggregated to a per-input average. Captured automatically from traces.", r:"automatic -- from span data"}
+];
+var chips = document.querySelectorAll('.metric-chip');
+var detail = document.getElementById('metricDetail');
+function showMetric(i){
+  chips.forEach(function(c){ c.classList.toggle('active', +c.dataset.m === i); });
+  var m = metrics[i];
+  detail.innerHTML = '<h3>'+m.t+'</h3><p>'+m.d+'</p><span class="req">'+m.r+'</span>';
+}
+chips.forEach(function(c){ c.addEventListener('click', function(){ showMetric(+c.dataset.m); }); });
+showMetric(0);
+
+// --- metric family filter ---
+document.querySelectorAll('.fam-filter button').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.querySelectorAll('.fam-filter button').forEach(function(x){ x.classList.remove('active'); });
+    b.classList.add('active');
+    var f = b.dataset.f;
+    document.querySelectorAll('.fam-row').forEach(function(r){
+      r.style.display = (f === 'all' || r.dataset.w === f) ? '' : 'none';
+    });
+  });
+});
+
+// --- flow switch ---
+document.querySelectorAll('.switch button').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.querySelectorAll('.switch button').forEach(function(x){ x.classList.remove('active'); });
+    b.classList.add('active');
+    document.querySelectorAll('.flow-panel').forEach(function(p){ p.classList.remove('active'); });
+    document.getElementById('flow-'+b.dataset.flow).classList.add('active');
+  });
+});
+
+// --- code tabs ---
+document.querySelectorAll('.code-tabs button').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.querySelectorAll('.code-tabs button').forEach(function(x){ x.classList.remove('active'); });
+    b.classList.add('active');
+    document.querySelectorAll('.code-panel').forEach(function(p){ p.classList.remove('active'); });
+    document.getElementById('code-'+b.dataset.code).classList.add('active');
+  });
+});
+
+// --- TOC scrollspy ---
+var links = document.querySelectorAll('.toc a');
+var secs = document.querySelectorAll('section');
+var spy = new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if(e.isIntersecting){
+      var id = e.target.id;
+      links.forEach(function(l){ l.classList.toggle('active', l.getAttribute('href') === '#'+id); });
+    }
+  });
+}, { rootMargin: '-45% 0px -50% 0px' });
+secs.forEach(function(s){ spy.observe(s); });
+
+// --- PDF export ---
+window.GleanBridge.postMessage({ actionId: 'export-pdf', type: 'glean-add-menu', metadata: { label: 'Export as PDF', icon: 'export' } });
+window.GleanBridge.onMessage('action', function(data){ if (data.actionId === 'export-pdf') window.print(); });
+</script>
+<style>@page { size: auto !important; }</style>
+</body>
+</html>

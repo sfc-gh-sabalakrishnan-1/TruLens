@@ -1,0 +1,8 @@
+-- Results and traces for the application created by the .env defaults.
+SELECT * FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_OBSERVABILITY_EVENTS(
+    'LLM_EVAL_DB', 'EVAL', 'CORTEX_LLM_EVAL', 'EXTERNAL AGENT'
+));
+
+SELECT * FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_OBSERVABILITY_LOGS(
+    'LLM_EVAL_DB', 'EVAL', 'CORTEX_LLM_EVAL', 'EXTERNAL AGENT'
+)) WHERE record:"severity_text" IN ('ERROR', 'WARN');

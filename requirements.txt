@@ -1,0 +1,6 @@
+# Python 3.11+; resolve these packages together in a clean environment.
+snowflake-snowpark-python>=1.43.0,<2
+trulens-core>=2.1.2,<3
+trulens-connectors-snowflake>=2.1.2,<3
+trulens-providers-cortex>=2.1.2,<3
+python-dotenv>=1.0,<2
